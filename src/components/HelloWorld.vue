@@ -1,58 +1,126 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+  <div id="app">
+		<p>用户名:{{name}}</p>
+    <div class="screen">
+			<div class="message" v-for="(item, index) in messageList" :key="index">
+				<p class="message-title">{{item.name}}</p>
+				<p class="message-content">{{item.content}}</p>
+			</div>
+    </div>
+		<div class="message-input">
+			<textarea v-model="message">				
+			</textarea>
+			<button @click="sendMessage()">发送</button>
+		</div>
   </div>
 </template>
 
 <script>
+const ws = new WebSocket('ws://localhost:8090');
+
 export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
-  }
+  name: 'app',
+	data()  {
+		return {
+			name: '',
+			message: '',
+			messageList: []
+		}
+	},
+	mounted() {
+		const nameList = ['kacila', 'ylg','954'];
+		this.name = nameList[Math.round((Math.random()*2))];
+		ws.onmessage = (data) => {
+			const message = JSON.parse(data.data);
+			if (message.type === 'name') {
+				this.name = message.name;
+			}
+			if (message.type === 'chat') {
+				this.messageList.push(message);
+			}
+		};
+		/*
+		ws.addEventListener('open',() => {
+			const message = {
+				type: 'firstConnect',
+				name: this.name,
+			}
+			ws.send(JSON.stringify(message));
+		});
+		*/
+	},
+	methods: {
+		sendMessage () {
+			if (this.message.length === 0) {
+				return;
+			}			
+			const time = new Date();
+			const hour = time.getHours();
+			const minute = time.getMinutes();
+			const second = time.getSeconds();
+			const message = {
+				type: 'chat',
+				name: `${this.name}-${hour}:${minute}:${second}`,
+				content: this.message				
+			};
+			this.messageList.push(message);
+			ws.send(JSON.stringify(message));
+			this.message = '';			
+		}
+	}
 }
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
+<style scoped lang="less">
+#app {
+	p {
+		margin: 0;		
+	}
+	input,button,select,textarea{outline:none}
+	textarea{resize:none}
+	button {
+		color: white;
+		width: 40px;
+		height: 20px;
+		border: 0 solid transparent;
+		background-color: deepskyblue;
+		font-size: 12px;
+	}
+	background-color: black;
+	width: 300px;
+	padding: 10px; 
+	.screen {
+		box-sizing: border-box;
+		background-color: white;
+		width: 300px;
+		height: 150px;
+		border: 1px steelblue solid;
+		overflow-y: scroll;		
+		-ms-overflow-style: none;			
+		overflow: -moz-scrollbars-none;
+		&::-webkit-scrollbar {
+			display: none;
+		}
+	}
+	.message-input {
+		padding-top: 5px;
+		text-align: right;
+		textarea {
+			box-sizing: border-box;
+			width: 300px;
+			height: 50px;
+		}		
+	}
+	.message {
+		padding-left: 5px;
+		font-size: 12px;
+		.message-title {
+			color: darkblue;
+		}
+		.message-content {
+			padding-left: 10px; 
+			color: coral;
+		}
+	}
 }
 </style>
