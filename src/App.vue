@@ -1,5 +1,5 @@
 <template>
-  <div class="main">
+  <div v-if="roomFlag" class="main">
 		<Bottom ref="bottom" :winner="winner" :bottom="bottom" @send="sendMessage" class="bottom"></Bottom>
 		<ul>
 			<li v-for="item in players" :key="item.name" :style="{color: item.winner?'red':'black'}">
@@ -13,10 +13,31 @@
 		</ul>
 		<Introduce :name="name" :score="score" class="introduce"></Introduce>
 		<Self ref="self" :now="now" @send="sendMessage" :No="No" :card="selfCard" :before="before" class="self"></Self>
-		<Chat ref="chat" :name="name" @send="sendMessage" class="chat"></Chat>
-		
-		
-  </div>
+		<Chat ref="chat" :name="name" @send="sendMessage" class="chat"></Chat>  
+	</div>
+	<div v-else class="form">
+		<p>{{errorMessage}}</p>
+		<div class="form-item" >
+			<label>房间名: </label>
+			<input type='text' v-model.trim="roomName"/>
+			<span v-if="submitFlag">请输入房间名</span>
+		</div>
+		<div class="form-item" >
+			<label>用户名: </label>
+			<input type='text' v-model.trim="name"/>
+			<span v-if="submitFlag">请输入用户名</span>
+		</div>
+		<div class="form-item">
+			<label>是否创建新房间: </label>
+			<input type='checkbox' v-model="newRoom"/>
+		</div>
+		<div class="form-item" v-if="newRoom" >
+			<label>玩家人数: </label>
+			<input type='number' v-model.number="playerCount"/>
+			<span v-if="submitFlag">请输入玩家人数</span>
+		</div>
+		<button @click="submitMessage">提交</button>
+	</div>
 </template>
 
 <script>
@@ -25,7 +46,8 @@ import Introduce from './components/Introduce.vue';
 import Self from './components/Self.vue';
 import Bottom from './components/Bottom.vue';
 
-const ws = new WebSocket('ws://10.112.11.135:8090');
+const url = 'ws://10.112.11.135:8090'
+let ws = new WebSocket(url);
 
 export default {
   name: 'app',
@@ -37,7 +59,13 @@ export default {
 	},
 	data()  {
 		return {
+			newRoom: false,
+			roomName: '',
+			submitFlag: false,
+			roomFlag: false,
+			theSame: false,
 			name: '',
+			errorMessage: '',
 			message: '',
 			players: [],
 			selfNo: 0,
@@ -46,31 +74,67 @@ export default {
 			others: [],
 			first: 0,
 			score: 0,
-			palyerCount: 6,
+			playerCount: 6,
 			bottom: 6,
 			now: 1,
 			winner: false,
 		}
 	},
-	mounted() {		
-		ws.onmessage = (data) => {
+	mounted() {
+		ws.onerror = () => {
+			alert('连接出错请重连');
+		}
+		ws.onclose = () => {
+			alert('掉线请重连');
+		}
+		ws.onmessage = this.messageHandler;
+		/*
+		ws.addEventListener('open',() => {
+			const message = {
+				type: 'firstConnect',
+				name: this.name,
+			}
+			ws.send(JSON.stringify(message));
+		});
+		*/
+	},
+	computed: {
+		No () {
+			return (this.playerCount +  this.selfNo - this.first - 1) % this.playerCount + 1; 
+		}
+	},
+	methods: {
+		sendMessage (message) {
+			ws.send(message);
+		},
+		messageHandler(data) {
 			const message = JSON.parse(data.data);
-			if (message.type === 'name') {
-				this.name = message.name;
+			if (message.type === 'newResult') {
+				if (message.success) {
+					this.roomFlag = true;
+				}
+				else {
+					this.errorMessage = message.content;
+				}
 			}
 			if (message.type === 'chat') {
 				this.$refs.chat.messageList.push(message);
 			}
 			if (message.type === 'init') {
 				this.players = message.member;
+				this.now = message.now;
+				this.first = message.first;
+				this.bottom = message.bottom;
 				message.member.forEach((mb) => {
-					mb.option = '';
-					mb.winner = false;
 					mb.cardA = '';
 					mb.cardB = '';
 					if (mb.name === this.name) {
-						this.selfNo = mb.websocNo;
+						this.selfNo = mb.No;
+						this.winner = mb.winner;
 						this.score = mb.score;
+						if (mb.cardAindex !== 32) {
+							this.selfCard.push(mb.cardAindex,mb.cardBindex);
+						}
 					}
 				})
 			}
@@ -107,9 +171,9 @@ export default {
 				this.$refs.self.option = '';
 				this.score += message.results[this.No-1].score;
 				this.winner = message.results[this.No-1].winner;
-				this.bottom = message.results[this.palyerCount].score;
+				this.bottom = message.results[this.playerCount].score;
 				this.players.forEach((player) => {
-						let position = (this.palyerCount + player.websocNo - this.first -1) % this.palyerCount;
+						let position = (this.playerCount + player.No - this.first -1) % this.playerCount;
 						let item = message.results[position];
 						player.score += item.score;	
 						player.winner = item.winner;
@@ -117,25 +181,29 @@ export default {
 						player.cardB = item.cardB;
 				})
 			}
-		};
-		/*
-		ws.addEventListener('open',() => {
-			const message = {
-				type: 'firstConnect',
-				name: this.name,
+		},
+		submitMessage () {
+			if (this.roomName === '') {
+				this.submitFlag = true;
+				return;
 			}
-			ws.send(JSON.stringify(message));
-		});
-		*/
-	},
-	computed: {
-		No () {
-			return (this.palyerCount +  this.selfNo - this.first - 1) % this.palyerCount + 1; 
-		}
-	},
-	methods: {
-		sendMessage (message) {
-			ws.send(message);
+			if (this.name === '') {
+				this.submitFlag = true;
+				return;
+			}
+			if (this.newRoom) {
+				if(!this.playerCount) {
+					this.submitFlag = true;
+					return;
+				}
+			}
+			this.sendMessage(JSON.stringify({
+				type: 'new',
+				roomName: this.roomName,
+				name: this.name,
+				newRoom: this.newRoom,
+				playerCount: this.playerCount,
+			}));
 		}
 	}
 }

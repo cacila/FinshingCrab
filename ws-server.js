@@ -265,7 +265,6 @@ webSocketServer.on('connection', (ws) => {
 			webSocketServer.clients.forEach((websocket) => {
 				if (websocket.name !== ws.name) {
 					console.log(message);
-
 					websocket.send(JSON.stringify(message));
 				}
 			});
