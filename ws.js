@@ -45,6 +45,7 @@ class Crab {
 		this.winner = 0;
 		this.now = 1;
 		this.first = 0;
+		this.time = 0;
 		this.bottom = 6;
 		this.playerCount = playerCount;
 		this.nameList = [];
@@ -86,15 +87,17 @@ class Crab {
 					type: 'ConnetAgain',
 					content: this.playerMessage[index],
 				}
-				websocket.send(JSON.stringify({
-					type: 'init',
-					member: this.playerMessage,					
-					now: this.now,
-					bottom: this.bottom,
-					first: this.first,
-				}));
-				websocket.send(JSON.stringify(message));
-				item.websocket = websocket;				
+				if (websocket.readyState === 1) {
+					websocket.send(JSON.stringify({
+						type: 'init',
+						member: this.playerMessage,					
+						now: this.now,
+						bottom: this.bottom,
+						first: this.first,
+					}));
+					websocket.send(JSON.stringify(message));
+					item.websocket = websocket;			
+				}					
 				return;
 			}
 		});
@@ -157,7 +160,9 @@ class Crab {
 			this.playerMessage[index].cardAindex = cardGet[0];
 			this.playerMessage[index].cardBindex = cardGet[1];
 			console.log(JSON.stringify(message));
-			websocket.send(JSON.stringify(message));
+			if (websocket.readyState === 1) {
+				websocket.send(JSON.stringify(message));
+			}			
 			cardGet.push(name);
 			this.nowCardList.push(cardGet);
 		});	
@@ -296,13 +301,16 @@ class Crab {
 		console.log(message);
 		console.log(webSocket);
 		if (webSocket) {
-			webSocket.send(message);
+			if (webSocket.readyState === 1) {
+				webSocket.send(message);
+			}			
 		}
 		else {
-			console.log(1111);
 			this.nameList.forEach(({ name, websocket }, index) => {
 				console.log(name);
-				websocket.send(message);
+				if (websocket.readyState === 1) {
+					websocket.send(message);
+				}				
 			})
 		}
 	}
@@ -317,7 +325,8 @@ class Crab {
 					name,
 					now: this.now,
 					content: option,
-				}));	
+				}));
+				console.log(this.nowCardList);
 				this.nowCardList[index].push(option);
 				this.playerMessage[index].option = option;
 			}
@@ -329,12 +338,29 @@ const roomList = [];
 
 webSocketServer.on('connection', (ws) => {
 	let room = undefined;
-	console.log(1111);
 	ws.onerror = (error) => {
 		console.log(error);
 	};
 	ws.onclose = () => {
 		console.log('connect closed');
+		if (!room) return;
+		if (room.time !== 0) {
+			clearTimeout(room.time);
+		}
+		room.time = setTimeout(() => {
+			room.nameList.forEach(({name, websocket}, index) => {
+				if (websocket.readyState === 2) {
+					return;
+				}
+				if (index === room.nameList.length - 1) {
+					roomList.forEach((item, itemindex) => {
+						if (item === room) {
+							roomList.splice(itemindex, 1);
+						}
+					});
+				}
+			})
+		},120000);
 	}
 	ws.onmessage = (data) => {
 		const message = JSON.parse(data.data);
@@ -369,14 +395,22 @@ webSocketServer.on('connection', (ws) => {
 						room.getMessage(message.name, ws);
 					} else {
 						room.nameList.forEach((item) => {
-							if (item.name === message.name) {
-								newMessage.success = false;
-								newMessage.content = '用户名已存在'
+							if (item.name === message.name) {	
+								console.log(item.websocket.readyState);
+								if (item.websocket.readyState === 1) {
+									newMessage.success = false;
+									newMessage.content = '用户名已存在';
+								} else {
+									newMessage.content = 'success';
+								}								
 								return ;
 							}
 						})
-						if (newMessage.success) {
+						if (newMessage.success || newMessage.content !== 'success') {
 							room.addPlayer(message.name, ws);
+						}
+						if (newMessage.content === 'success') {
+							newMessage.content = '';
 						}
 					}
 				} else {
@@ -385,20 +419,26 @@ webSocketServer.on('connection', (ws) => {
 				}
 			}
 			console.log(`${message.name} join`);
-			ws.send(JSON.stringify(newMessage));
+			if (ws.readyState === 1) {
+				ws.send(JSON.stringify(newMessage));
+			}
+			
 		}
 		if (message.type === 'chat') {
 			room.nameList.forEach(({ name, websocket }) => {
 				if (websocket !== ws) {
-					websocket.send(JSON.stringify(message));
+					if (websocket.readyState === 1) {
+						websocket.send(JSON.stringify(message));
+					}					
 				}
 			});		
 		}
 		if (message.type === 'firstcard') {
 			room.nameList.forEach(({ name, websocket }) => {
 				if (websocket !== ws) {
-					console.log(message);
-					websocket.send(JSON.stringify(message));
+					if (websocket.readyState === 1) {
+						websocket.send(JSON.stringify(message));
+					}					
 				}
 			});			
 			setTimeout(() => {

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="roomFlag" class="main">
+  <div v-if="roomFlag" class="main">		
 		<Bottom ref="bottom" :winner="winner" :bottom="bottom" @send="sendMessage" class="bottom"></Bottom>
 		<ul>
 			<li v-for="item in players" :key="item.name" :style="{color: item.winner?'red':'black'}">
@@ -7,13 +7,13 @@
 				<p>{{item.score}}</p>
 				<p>{{item.option}}</p>
 				<p>{{item.cardA}}</p>
-				<p>{{item.cardB}}</p>
-				
+				<p>{{item.cardB}}</p>				
 			</li>
 		</ul>
 		<Introduce :name="name" :score="score" class="introduce"></Introduce>
 		<Self ref="self" :now="now" @send="sendMessage" :No="No" :card="selfCard" :before="before" class="self"></Self>
 		<Chat ref="chat" :name="name" @send="sendMessage" class="chat"></Chat>  
+		<p>{{errorMessage}}</p>
 	</div>
 	<div v-else class="form">
 		<p>{{errorMessage}}</p>
@@ -47,7 +47,6 @@ import Self from './components/Self.vue';
 import Bottom from './components/Bottom.vue';
 
 const url = 'ws://10.112.11.135:8090'
-let ws = new WebSocket(url);
 
 export default {
   name: 'app',
@@ -78,25 +77,11 @@ export default {
 			bottom: 6,
 			now: 1,
 			winner: false,
+			ws: '',
 		}
 	},
 	mounted() {
-		ws.onerror = () => {
-			alert('连接出错请重连');
-		}
-		ws.onclose = () => {
-			alert('掉线请重连');
-		}
-		ws.onmessage = this.messageHandler;
-		/*
-		ws.addEventListener('open',() => {
-			const message = {
-				type: 'firstConnect',
-				name: this.name,
-			}
-			ws.send(JSON.stringify(message));
-		});
-		*/
+		this.websocketInit();
 	},
 	computed: {
 		No () {
@@ -104,8 +89,32 @@ export default {
 		}
 	},
 	methods: {
+		websocketInit() {
+			this.ws = new WebSocket(url);
+			this.ws.onerror = () => {
+				alert('连接出错请重连');
+			};
+			this.ws.onclose = () => {
+				this.errorMessage = '掉线重连中';
+				setTimeout(this.websocketInit,1000);				
+			};
+			if (this.submitFlag) {
+				this.ws.onopen = () => {
+					this.newRoom = false;	
+					this.errorMessage = '';
+					this.sendMessage(JSON.stringify({
+						type: 'new',
+						roomName: this.roomName,
+						name: this.name,
+						newRoom: this.newRoom,
+						playerCount: this.playerCount,
+					}));
+				}
+			}
+			this.ws.onmessage = this.messageHandler;
+		},
 		sendMessage (message) {
-			ws.send(message);
+			this.ws.send(message);
 		},
 		messageHandler(data) {
 			const message = JSON.parse(data.data);
@@ -197,6 +206,7 @@ export default {
 					return;
 				}
 			}
+			this.submitFlag = true;
 			this.sendMessage(JSON.stringify({
 				type: 'new',
 				roomName: this.roomName,
