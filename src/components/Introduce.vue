@@ -23,8 +23,8 @@
 
 <style scoped lang="less">
 	.introduce {
-		width: 200px;
-		height: 100px;
+		width: 150px;
+		height: 120px;
 		font-size: 14px;
 		padding: 10px;
 		background-color:black;
@@ -35,7 +35,7 @@
 			.introduce-title {
 				text-align: right;
 				width: 50px;
-				margin-left: 50px;
+				margin-left: 10px;
 				padding-right: 5px;
 				color: white;
 			}

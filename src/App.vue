@@ -1,42 +1,52 @@
 <template>
-  <div v-if="roomFlag" class="main">		
-		<Bottom ref="bottom" :winner="winner" :bottom="bottom" @send="sendMessage" class="bottom"></Bottom>
-		<ul>
-			<li v-for="item in players" :key="item.name" :style="{color: item.winner?'red':'black'}">
-				<p>{{item.name}}</p>
-				<p>{{item.score}}</p>
-				<p>{{item.option}}</p>
-				<p>{{item.cardA}}</p>
-				<p>{{item.cardB}}</p>				
-			</li>
-		</ul>
-		<Introduce :name="name" :score="score" class="introduce"></Introduce>
-		<Self ref="self" :now="now" @send="sendMessage" :No="No" :card="selfCard" :before="before" class="self"></Self>
-		<Chat ref="chat" :name="name" @send="sendMessage" class="chat"></Chat>  
-		<p>{{errorMessage}}</p>
+  <div v-if="roomFlag" class="main">	
+		<button class="chatShowButton" @click="chatHandler">{{buttonContent}}聊天窗</button>
+		<p class="error">{{errorMessage}}</p>
+		<Bottom ref="bottom" :winner="winner" :bottom="bottom" @send="sendMessage" class="bottom" ></Bottom>
+		<table v-show="tableShow">
+			<thead>
+				<tr>
+					<th>用户名</th>
+					<th>分数</th>
+					<th>操作</th>
+					<th colspan="2">牌型</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr v-for="item in players" :key="item.name" :style="{color: item.winner?'red':'black'}">
+					<td>{{item.name}}</td>
+					<td>{{item.score}}</td>
+					<td>{{item.option}}</td>
+					<td>{{item.cardA}}</td>
+					<td>{{item.cardB}}</td>				
+				</tr>
+			</tbody>			
+		</table>
+		<div class="playerself">
+			<Introduce :name="name" :score="score" class="introduce"></Introduce>
+			<Self ref="self" :now="now" @send="sendMessage" :No="No" :card="selfCard" :before="before" class="self"></Self>
+		</div>
+		<Chat ref="chat" :name="name" @send="sendMessage" class="chat" v-show="showChat"></Chat>  		
 	</div>
 	<div v-else class="form">
-		<p>{{errorMessage}}</p>
+		<p class="error">{{errorMessage}}</p>
 		<div class="form-item" >
-			<label>房间名: </label>
-			<input type='text' v-model.trim="roomName"/>
-			<span v-if="submitFlag">请输入房间名</span>
+			<input type='text' v-model.trim="roomName" placeholder="请输入房间名"/>
 		</div>
 		<div class="form-item" >
-			<label>用户名: </label>
-			<input type='text' v-model.trim="name"/>
-			<span v-if="submitFlag">请输入用户名</span>
+			<input type='text' v-model.trim="name" placeholder="请输入用户名"/>
+		</div>
+		<div class="form-item">			
+			<input type='checkbox' v-model="newRoom"/>
+			<label>是否创建新房间: </label>
+		</div>
+		<div class="form-item" v-if="newRoom" placeholder="请输入玩家人数">
+			<input type='number' v-model.number="playerCount"/>
 		</div>
 		<div class="form-item">
-			<label>是否创建新房间: </label>
-			<input type='checkbox' v-model="newRoom"/>
+			<button @click="submitMessage">提交</button>
 		</div>
-		<div class="form-item" v-if="newRoom" >
-			<label>玩家人数: </label>
-			<input type='number' v-model.number="playerCount"/>
-			<span v-if="submitFlag">请输入玩家人数</span>
-		</div>
-		<button @click="submitMessage">提交</button>
+		
 	</div>
 </template>
 
@@ -58,6 +68,8 @@ export default {
 	},
 	data()  {
 		return {
+			tableShow: false,
+			showChat: false,
 			newRoom: false,
 			roomName: '',
 			submitFlag: false,
@@ -78,6 +90,7 @@ export default {
 			now: 1,
 			winner: false,
 			ws: '',
+			buttonContent: '显示',
 		}
 	},
 	mounted() {
@@ -89,6 +102,14 @@ export default {
 		}
 	},
 	methods: {
+		chatHandler() {
+			this.showChat = !this.showChat;
+			if (this.showChat) {
+				this.buttonContent = '关闭';
+			} else {
+				this.buttonContent = '显示';
+			}
+		},
 		websocketInit() {
 			this.ws = new WebSocket(url);
 			this.ws.onerror = () => {
@@ -98,10 +119,12 @@ export default {
 				this.errorMessage = '掉线重连中';
 				setTimeout(this.websocketInit,1000);				
 			};
-			if (this.submitFlag) {
+			this.ws.onopen = () => {
+				this.errorMessage = '';
+			}
+			if (this.submitFlag) {				
 				this.ws.onopen = () => {
-					this.newRoom = false;	
-					this.errorMessage = '';
+					this.newRoom = false;						
 					this.sendMessage(JSON.stringify({
 						type: 'new',
 						roomName: this.roomName,
@@ -121,8 +144,10 @@ export default {
 			if (message.type === 'newResult') {
 				if (message.success) {
 					this.roomFlag = true;
+					this.errorMessage = message.content;
 				}
 				else {
+					this.roomFlag = false;
 					this.errorMessage = message.content;
 				}
 			}
@@ -130,13 +155,17 @@ export default {
 				this.$refs.chat.messageList.push(message);
 			}
 			if (message.type === 'init') {
+				this.tableShow = true;
 				this.players = message.member;
 				this.now = message.now;
+				this.before = message.before;
 				this.first = message.first;
 				this.bottom = message.bottom;
 				message.member.forEach((mb) => {
-					mb.cardA = '';
-					mb.cardB = '';
+					if (message.now !== 1 || message.member[1].option === '') {
+						mb.cardA = '';
+						mb.cardB = '';
+					}
 					if (mb.name === this.name) {
 						this.selfNo = mb.No;
 						this.winner = mb.winner;
@@ -171,12 +200,12 @@ export default {
 					item.cardB = '';					
 				});
 				this.$refs.bottom.shuffle();
-				
 			}
 			if (message.type === 'firstcard') {
 				this.$refs.bottom.FirstCard = message.content;
 			}
 			if (message.type === 'result') {
+				this.tableShow = false;
 				this.$refs.self.option = '';
 				this.score += message.results[this.No-1].score;
 				this.winner = message.results[this.No-1].winner;
@@ -224,36 +253,177 @@ export default {
 		margin: 0;
 		padding: 0;
 	}
+	* {
+		box-sizing: border-box;
+	}
 	.main {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: flex-end;
-		width: 100vw;
-		height: 96vh;
+		align-items: center;
+		flex-direction: column;
+		padding: 0 20px;
+		width: 100%;
+		height: 100%;
 		justify-content: space-around;
 	}
-	.Chat {
-		
+	.chat {
+		position: absolute;
+		top: 35px;
+		@media (min-width: 1200px) {
+			right: 0;
+			top: 70vh;
+		}
+	}
+	.playerself {
+		width: 100%;
+		display: flex;
+		max-width: 600px;
+		justify-content: space-between;
+		.self {
+			flex-shrink: 0;
+			flex-grow: 1;
+		}
 	}
 	.bottom {
 		text-align: center;
 		width: 100%;
 	}
-	ul{
-		width: 90%;
-		border-top: black solid 1px;
-		border-left: black solid 1px;
-		border-right: black solid 1px;
+	.chatShowButton {
+		position: fixed;
+		color: white;
+		right: 0;
+		top: 30px;
+		width: 25px;
+		text-shadow: 0px -1px 0px #5b6ddc;
+		outline: none;
+		border: 1px solid rgba(0, 0, 0, .49);
+		background-clip: padding-box;
+		border-top-left-radius: 6px;
+		border-bottom-left-radius: 6px;
+		background-color: #5466da;				
+		cursor: pointer;		
+		-webkit-box-shadow: inset 0px 1px 0px #9ab1ec;
+		box-shadow: inset 0px 1px 0px #9ab1ec;
 	}
-	li {		
-		justify-content: space-around;
-		display: flex;
-		border-bottom: 1px solid #333;
+	table{
+		width: 100%;
+		max-width: 800px;
+		border: 0 solid transparent;
+	}	
+	tbody {
+		tr {
+			&:nth-of-type(2n) {
+				background-color: paleturquoise;
+			}
+			&:nth-of-type(2n+1) {
+				background-color: navajowhite;
+			}
+		}
 		
-		p {
-			width: 100px;
-			text-align: right;
+	}
+	thead {
+		tr {
+			background-color: skyblue;
+			th {
+				width: 20%;
+				&:nth-of-type(4) {
+					width: 40%;
+				}
+			}
 		}
 	}
-	
+	.error {
+		padding: 10px;
+		line-height: 16px;
+		height: 16px;
+		color: red;
+	}
+	.form {
+		position: relative;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		max-width: 400px;
+		height: 400px;
+		text-align: center;
+		animation: 1s ease-in-out login;
+		color:white;
+		
+		@keyframes login {
+			0% {
+				opacity: 0;
+				margin-top: 50px;
+			}
+			100% {
+				opacity: 1;
+			}
+		}
+		.form-item {
+			display: flex;
+			align-items: center;
+			text-align: left;
+			box-sizing: border-box;			
+			width: 100%;
+			padding: 10px;
+			input[type="text"], input[type="number"] {
+				width: 100%;
+				height: 40px;
+				margin-top: 7px;
+				font-size: 14px;
+				color: #444;
+				outline: none;
+				border: 1px solid rgba(0, 0, 0, .49);
+				padding-left: 20px;
+				
+				-webkit-background-clip: padding-box;
+				-moz-background-clip: padding-box;
+				background-clip: padding-box;
+				border-radius: 6px;
+		
+				background-color: #fff;
+				-webkit-box-shadow: inset 0px 2px 0px #d9d9d9;
+				box-shadow: inset 0px 2px 0px #d9d9d9;
+			}
+			input[type="checkbox"] {
+				margin-top: 7px;
+				font-size: 14px;
+				color: #444;
+				outline: none;
+				border: 1px solid rgba(0, 0, 0, .49);
+				padding-left: 20px;
+			}
+			button {
+				width: 100%;
+				height: 50px;
+				margin-top: 7px;
+				color: #fff;
+				font-size: 18px;
+				font-weight: bold;
+				text-shadow: 0px -1px 0px #5b6ddc;
+				outline: none;
+				border: 1px solid rgba(0, 0, 0, .49);
+		
+				-webkit-background-clip: padding-box;
+				-moz-background-clip: padding-box;
+				background-clip: padding-box;
+				border-radius: 6px;
+		
+				background-color: #5466da;
+		
+				cursor: pointer;
+				
+				-webkit-box-shadow: inset 0px 1px 0px #9ab1ec;
+				box-shadow: inset 0px 1px 0px #9ab1ec;
+				&:hover {
+					background-color: #5f73e9;
+					box-shadow: inset 0px 1px 0px #aab9f4;
+					margin-top: 10px;
+				}
+				&:active {
+					background-color: #7588e1;
+					box-shadow: inset 0px 1px 0px #93a9e9;
+				}
+			}
+		}		
+	}
 </style>

@@ -1,5 +1,5 @@
 <template>
-	<div>
+	<div class="self-container">
 		<p>你是第{{No}}家</p>
 		<div class="option">			
 			<button v-if="(before === 0 && option === '') || option === '吃底'" @click="Option">吃底</button>
@@ -80,5 +80,68 @@ export default {
 }
 </script>
 
-<style>
+<style lang="less">
+	div.self-container {
+		display: flex;
+		flex-direction: column;
+		justify-content: space-around;
+		color:white;
+		max-width: 180px;
+		height: 120px;
+		p {
+			margin: 0;
+			text-align: center;
+		}
+		.option {
+			display: flex;
+			justify-content: space-around;
+			button {
+				width: 40px;
+				margin-top: 7px;
+				color: #fff;
+				font-size: 12px;
+				font-weight: bold;
+				text-shadow: 0px -1px 0px #5b6ddc;
+				outline: none;
+				border: 1px solid rgba(0, 0, 0, .49);
+				background-clip: padding-box;
+				border-radius: 6px;
+						
+				background-color: #5466da;
+						
+				cursor: pointer;
+				
+				-webkit-box-shadow: inset 0px 1px 0px #9ab1ec;
+				box-shadow: inset 0px 1px 0px #9ab1ec;
+			}
+		}
+		.card {
+			display: flex;
+			justify-content: center;
+			div {
+				color: black;
+				text-align: center;
+				background-color: white;
+				width: 30px;
+				height: 40px;
+				border: 1px solid black;
+				border-radius: 5px;
+				vertical-align: middle;
+				::before {
+					height: 100%;
+					width: 0;
+					vertical-align: middle;
+					display: inline-block;
+					content: '';
+				}
+				::after {
+					height: 100%;
+					width: 0;
+					vertical-align: middle;
+					display: inline-block;
+					content: '';
+				}
+			}
+		}
+	}
 </style>

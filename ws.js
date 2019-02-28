@@ -51,6 +51,7 @@ class Crab {
 		this.nameList = [];
 		this.playerMessage = [];
 		this.gameStatus = false;
+		this.before = 0;
 		this.nameList.push({
 			name,
 			websocket,
@@ -77,6 +78,7 @@ class Crab {
 				now: this.now,
 				bottom: this.bottom,
 				first: this.first,
+				before: this.before,
 			}));
 		})
 	}
@@ -94,6 +96,7 @@ class Crab {
 						now: this.now,
 						bottom: this.bottom,
 						first: this.first,
+						before: this.before,
 					}));
 					websocket.send(JSON.stringify(message));
 					item.websocket = websocket;			
@@ -137,6 +140,7 @@ class Crab {
 		return cardA < cardB ? [cardA, cardB] : [cardB, cardA];
 	}
 	gameStart(index = Math.floor(Math.random() * 32)) {
+		this.before = 0;
 		console.log(this.playerMessage);
 		this.playerMessage[this.winner].winner = false;
 		this.playerMessage.forEach((item) => {
@@ -316,6 +320,7 @@ class Crab {
 	}
 	addOption(ws, option) {
 		this.now = this.now + 1;
+		if (option !== '扑') this.before = 1;
 		this.nameList.forEach(({ name, websocket }, index) => {
 			if (websocket === ws) {
 				console.log(this.nowCardList);
@@ -402,11 +407,11 @@ webSocketServer.on('connection', (ws) => {
 									newMessage.content = '用户名已存在';
 								} else {
 									newMessage.content = 'success';
-								}								
+								}
 								return ;
 							}
 						})
-						if (newMessage.success || newMessage.content !== 'success') {
+						if (newMessage.success && newMessage.content !== 'success') {
 							room.addPlayer(message.name, ws);
 						}
 						if (newMessage.content === 'success') {
@@ -420,6 +425,7 @@ webSocketServer.on('connection', (ws) => {
 			}
 			console.log(`${message.name} join`);
 			if (ws.readyState === 1) {
+				console.log(newMessage);
 				ws.send(JSON.stringify(newMessage));
 			}
 			

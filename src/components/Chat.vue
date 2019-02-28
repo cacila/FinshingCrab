@@ -1,6 +1,6 @@
 <template>
 	<div class="chat">
-		<div class="screen">
+		<div ref="screen" class="screen">
 			<div class="message" v-for="(item, index) in messageList" :key="index">
 				<p class="message-title">{{item.name}}</p>
 				<p class="message-content">{{item.content}}</p>
@@ -41,6 +41,13 @@
 				this.$emit('send',JSON.stringify(message));
 				this.message = '';			
 			}
+		},
+		watch:{
+			messageList() {
+				setTimeout(()=> {
+					this.$refs.screen.scrollTop = this.$refs.screen.scrollHeight;
+				},0);
+			}
 		}
 	}
 </script>
@@ -58,6 +65,7 @@
 		height: 20px;
 		border: 0 solid transparent;
 		background-color: deepskyblue;
+		border-radius: 6px;
 		font-size: 12px;
 	}
 	background-color: black;
@@ -66,7 +74,7 @@
 	.screen {
 		box-sizing: border-box;
 		background-color: white;
-		width: 300px;
+		width: 100%;
 		height: 150px;
 		border: 1px steelblue solid;
 		overflow-y: scroll;		
@@ -81,7 +89,7 @@
 		text-align: right;
 		textarea {
 			box-sizing: border-box;
-			width: 300px;
+			width: 100%;
 			height: 50px;
 		}		
 	}

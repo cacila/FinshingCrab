@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<p >底:{{bottom}}</p>
+		<p class="bottom-title">底:{{bottom}}</p>
 		<div class="team-container">
 			<div :class="{ action: true, shuffle: shuffleflag }">			
 				<transition-group name="team" tag="div" :class="{ container: true, shuffle: shuffleflag }">
@@ -112,16 +112,21 @@
 </script>
 
 <style>
+	.bottom-title {
+		font-size: 18px;
+		font-weight: bold;
+		color: white;
+	}
 	.team-container {
-		height: 160px;
-		width: 240px;
+		height: 200px;
+		width: 300px;
 		position: relative;
 		left: 50%;
 		transform: translate(-50%, 0);
 	}
 	.action {
-		height: 40px;
-		width: 30px;
+		height: 44px;
+		width: 34px;
 		transition: all 1s;
 		overflow: hidden;
 		position: relative;
@@ -133,26 +138,28 @@
 		left: 0;
 		top: 0;
 		transform: translate(0, 0);
-		width: 240px;
-		height: 160px;		
+		width: 300px;
+		height: 200px;		
 	}
 	.container {
 		
 		display: flex;
-		width: 240px;
-		height: 160px;
+		width: 300px;
+		height: 200px;
 		overflow: hidden;
 		flex-wrap: wrap;
 		position: relative;				
 	}
 	
-	.content {
+	.content {		
 		box-sizing: border-box;
 		text-align: center;
+		background: white;
 		width: 30px;
 		height: 40px;
 		border: 1px solid black;
 		border-radius: 5px;
+		margin: 2px;
 	}
 	.content.back {
 		color: transparent;
